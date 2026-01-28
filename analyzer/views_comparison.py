@@ -180,24 +180,7 @@ def compare_videos(request):
                     )
                     response = request_api.execute()
 
-                    if response['items']:
-                        video = response['items'][0]
-
-                        from youtube_transcript_api import YouTubeTranscriptApi
-                        
-                        try:
-                            api = YouTubeTranscriptApi()
-                            transcript_list = api.list(video_id)
-                        except Exception as transcript_error:
-                            print(f"⚠️ Transcript blocked for {video_id}: {str(transcript_error)[:150]}")
-                            failed_videos.append({
-                                'url': url,
-                                'video_id': video_id,
-                                'error': 'Transcript unavailable or blocked'
-                            })
-                            # Skip this video if transcript is blocked
-                            continue
-                    else:
+                    if not response['items']:
                         # Video not found
                         failed_videos.append({
                             'url': url,
@@ -207,57 +190,74 @@ def compare_videos(request):
                         print(f"❌ Video not found: {video_id}")
                         continue
 
-                        try:
-                            transcript_obj = transcript_list.find_transcript(['en'])
-                        except:
-                            try:
-                                transcript_obj = transcript_list.find_transcript(['hi'])
-                            except:
-                                transcript_obj = (
-                                    transcript_list._manually_created_transcripts[0]
-                                    if transcript_list._manually_created_transcripts
-                                    else transcript_list._generated_transcripts[0]
-                                )
+                    video = response['items'][0]
 
-                        transcript_data = list(transcript_obj.fetch())
-                        transcript_text = ' '.join(
-                            [snippet.text for snippet in transcript_data]
-                        )
-
-                        analysis = analyzer.analyze_transcript(
-                            transcript_text,
-                            transcript_data
-                        )
-
-                        # Add comments analysis
-                        try:
-                            API_KEY = settings.YOUTUBE_API_KEY
-                            comments_analyzer = CommentsAnalyzer(API_KEY)
-                            comments_analysis = comments_analyzer.analyze_video_comments(
-                                video_id,
-                                max_comments=50
-                            )
-                            analysis['comments'] = comments_analysis
-                        except Exception as e:
-                            analysis['comments'] = {
-                                'error': 'Could not analyze comments'
-                            }
-
-                        videos_data.append({
+                    from youtube_transcript_api import YouTubeTranscriptApi
+                    
+                    try:
+                        api = YouTubeTranscriptApi()
+                        transcript_list = api.list(video_id)
+                    except Exception as transcript_error:
+                        print(f"⚠️ Transcript blocked for {video_id}: {str(transcript_error)[:150]}")
+                        failed_videos.append({
                             'url': url,
                             'video_id': video_id,
-                            'title': video['snippet']['title'],
-                            'description': video['snippet']['description'],  # ADD THIS LINE
-                            'channel': video['snippet']['channelTitle'],
-                            'analysis': analysis,
-                            'skill_level': analysis['skill_level'],
-                            'level_score': analysis['level_score'],
-                            'word_count': sum(
-                                len(snippet.text.split())
-                                for snippet in transcript_data
-                            ),
-                            'transcript_text': transcript_text
+                            'error': 'Transcript unavailable or blocked'
                         })
+                        # Skip this video if transcript is blocked
+                        continue
+
+                    try:
+                        transcript_obj = transcript_list.find_transcript(['en'])
+                    except:
+                        try:
+                            transcript_obj = transcript_list.find_transcript(['hi'])
+                        except:
+                            transcript_obj = (
+                                transcript_list._manually_created_transcripts[0]
+                                if transcript_list._manually_created_transcripts
+                                else transcript_list._generated_transcripts[0]
+                            )
+
+                    transcript_data = list(transcript_obj.fetch())
+                    transcript_text = ' '.join(
+                        [snippet.text for snippet in transcript_data]
+                    )
+
+                    analysis = analyzer.analyze_transcript(
+                        transcript_text,
+                        transcript_data
+                    )
+
+                    # Add comments analysis
+                    try:
+                        API_KEY = settings.YOUTUBE_API_KEY
+                        comments_analyzer = CommentsAnalyzer(API_KEY)
+                        comments_analysis = comments_analyzer.analyze_video_comments(
+                            video_id,
+                            max_comments=50
+                        )
+                        analysis['comments'] = comments_analysis
+                    except Exception as e:
+                        analysis['comments'] = {
+                            'error': 'Could not analyze comments'
+                        }
+
+                    videos_data.append({
+                        'url': url,
+                        'video_id': video_id,
+                        'title': video['snippet']['title'],
+                        'description': video['snippet']['description'],  # ADD THIS LINE
+                        'channel': video['snippet']['channelTitle'],
+                        'analysis': analysis,
+                        'skill_level': analysis['skill_level'],
+                        'level_score': analysis['level_score'],
+                        'word_count': sum(
+                            len(snippet.text.split())
+                            for snippet in transcript_data
+                        ),
+                        'transcript_text': transcript_text
+                    })
 
                 # ✅ CHECK IF ANY VIDEOS WERE SUCCESSFULLY PROCESSED
                 if not videos_data:
