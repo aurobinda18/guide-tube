@@ -180,6 +180,8 @@ def compare_videos(request):
 
                 for url in video_urls:
                     video_id = extract_video_id(url)
+                    print(f"🔍 Processing URL: {url}")
+                    print(f"📌 Extracted video_id: {video_id}")
                     
                     # ✅ CHECK IF VIDEO ID IS VALID
                     if not video_id:
@@ -190,22 +192,36 @@ def compare_videos(request):
                         print(f"❌ Invalid URL format: {url}")
                         continue
 
-                    request_api = youtube.videos().list(
-                        part="snippet",
-                        id=video_id
-                    )
-                    response = request_api.execute()
+                    try:
+                        request_api = youtube.videos().list(
+                            part="snippet",
+                            id=video_id
+                        )
+                        
+                        print(f"🌐 Calling YouTube API for: {video_id}")
+                        response = request_api.execute()
+                        print(f"✅ API Response received: {response.get('pageInfo', {})} items")
+                        
+                    except Exception as api_error:
+                        print(f"❌ API Error for {video_id}: {str(api_error)[:150]}")
+                        failed_videos.append({
+                            'url': url,
+                            'video_id': video_id,
+                            'error': f'YouTube API error: {str(api_error)[:100]}'
+                        })
+                        continue
 
-                    if not response['items']:
+                    if not response.get('items') or len(response.get('items', [])) == 0:
                         # Video not found
                         failed_videos.append({
                             'url': url,
                             'video_id': video_id,
-                            'error': 'Video not found. It may be private, deleted, or unavailable.'
+                            'error': 'Video not found. It may be private, deleted, or unavailable in your region.'
                         })
                         print(f"❌ Video not found: {video_id}")
                         continue
 
+                    print(f"✅ Video found: {video_id}")
                     video = response['items'][0]
 
                     from youtube_transcript_api import YouTubeTranscriptApi
