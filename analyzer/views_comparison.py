@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .services.analysis_service import TranscriptAnalyzer
@@ -9,23 +9,88 @@ from .services.explanation_service import ExplanationService
 from .services.learning_path_service import LearningPathService
 import os
 from googleapiclient.discovery import build
+from django.conf import settings
+from urllib.parse import urlparse, parse_qs
+import re
 
 def extract_video_id(url):
-    """Extract YouTube video ID from URL"""
+    """
+    Extract YouTube video ID from various URL formats.
+    Supports:
+    - https://www.youtube.com/watch?v=VIDEO_ID
+    - https://youtu.be/VIDEO_ID
+    - https://www.youtube.com/shorts/VIDEO_ID
+    - https://m.youtube.com/watch?v=VIDEO_ID
+    - https://www.youtube.com/embed/VIDEO_ID
+    - https://www.youtube.com/v/VIDEO_ID
+    """
+    if not url:
+        return None
+    
+    # Remove whitespace
+    url = url.strip()
+    
+    # Pattern 1: Standard watch URL with v parameter
     if 'v=' in url:
-        return url.split('v=')[1][:11]
-    elif 'youtu.be/' in url:
-        return url.split('youtu.be/')[1][:11]
-    return url[:11]
+        try:
+            parsed_url = urlparse(url)
+            query_params = parse_qs(parsed_url.query)
+            if 'v' in query_params:
+                video_id = query_params['v'][0]
+                # Video IDs are 11 characters
+                return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 2: Short URL (youtu.be/VIDEO_ID)
+    if 'youtu.be/' in url:
+        try:
+            video_id = url.split('youtu.be/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 3: Shorts URL
+    if '/shorts/' in url:
+        try:
+            video_id = url.split('/shorts/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 4: Embed URL
+    if '/embed/' in url:
+        try:
+            video_id = url.split('/embed/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 5: /v/ URL
+    if '/v/' in url:
+        try:
+            video_id = url.split('/v/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 6: Just the video ID (11 characters, alphanumeric with - and _)
+    # YouTube video IDs are exactly 11 characters: letters, numbers, hyphens, underscores
+    if len(url) == 11:
+        # Check if it's a valid video ID format
+        valid_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
+        if all(char in valid_chars for char in url):
+            return url
+    
+    return None
 
 def get_youtube_api():
-    """Get YouTube API instance"""
-    with open('.env', 'r') as f:
-        for line in f:
-            if 'YOUTUBE_API_KEY' in line:
-                API_KEY = line.split('=')[1].strip()
-                break
-
+    """Get YouTube API instance using Django settings"""
+    API_KEY = settings.YOUTUBE_API_KEY
+    
+    if not API_KEY:
+        raise ValueError('YouTube API key is not configured in settings')
+    
     return build('youtube', 'v3', developerKey=API_KEY)
 
 def calculate_recommendation_score(video, target_level):
@@ -136,12 +201,7 @@ def compare_videos(request):
 
                         # Add comments analysis
                         try:
-                            with open('.env', 'r') as f:
-                                for line in f:
-                                    if 'YOUTUBE_API_KEY' in line:
-                                        API_KEY = line.split('=')[1].strip()
-                                        break
-
+                            API_KEY = settings.YOUTUBE_API_KEY
                             comments_analyzer = CommentsAnalyzer(API_KEY)
                             comments_analysis = comments_analyzer.analyze_video_comments(
                                 video_id,

@@ -10,6 +10,83 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
+from django.conf import settings
+from urllib.parse import urlparse, parse_qs
+
+# ======================
+# UTILITY FUNCTIONS
+# ======================
+
+def extract_video_id(url):
+    """
+    Extract YouTube video ID from various URL formats.
+    Supports:
+    - https://www.youtube.com/watch?v=VIDEO_ID
+    - https://youtu.be/VIDEO_ID
+    - https://www.youtube.com/shorts/VIDEO_ID
+    - https://m.youtube.com/watch?v=VIDEO_ID
+    - https://www.youtube.com/embed/VIDEO_ID
+    - https://www.youtube.com/v/VIDEO_ID
+    """
+    if not url:
+        return None
+    
+    # Remove whitespace
+    url = url.strip()
+    
+    # Pattern 1: Standard watch URL with v parameter
+    if 'v=' in url:
+        try:
+            parsed_url = urlparse(url)
+            query_params = parse_qs(parsed_url.query)
+            if 'v' in query_params:
+                video_id = query_params['v'][0]
+                # Video IDs are 11 characters
+                return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 2: Short URL (youtu.be/VIDEO_ID)
+    if 'youtu.be/' in url:
+        try:
+            video_id = url.split('youtu.be/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 3: Shorts URL
+    if '/shorts/' in url:
+        try:
+            video_id = url.split('/shorts/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 4: Embed URL
+    if '/embed/' in url:
+        try:
+            video_id = url.split('/embed/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 5: /v/ URL
+    if '/v/' in url:
+        try:
+            video_id = url.split('/v/')[1].split('?')[0].split('&')[0]
+            return video_id[:11] if len(video_id) >= 11 else video_id
+        except:
+            pass
+    
+    # Pattern 6: Just the video ID (11 characters, alphanumeric with - and _)
+    # YouTube video IDs are exactly 11 characters: letters, numbers, hyphens, underscores
+    if len(url) == 11:
+        # Check if it's a valid video ID format
+        valid_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
+        if all(char in valid_chars for char in url):
+            return url
+    
+    return None
 
 # ======================
 # HOME PAGE (Landing Page)
@@ -265,84 +342,95 @@ def video_analyse_QA(request):
         elif 'video_url' in request.POST:
             video_url = request.POST['video_url']
             
-            # Extract video ID (simple version)
-            if 'v=' in video_url:
-                video_id = video_url.split('v=')[1][:11]
+            # Extract video ID using comprehensive parser
+            video_id = extract_video_id(video_url)
+            
+            if not video_id:
+                # Invalid URL format
+                video_info = {
+                    'error': 'Invalid YouTube URL. Please enter a valid YouTube video URL. Supported formats: youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/...'
+                }
+            else:
+                # Get API key from settings
+                API_KEY = settings.YOUTUBE_API_KEY
                 
-                # Get API key from .env
-                with open('.env', 'r') as f:
-                    for line in f:
-                        if 'YOUTUBE_API_KEY' in line:
-                            API_KEY = line.split('=')[1].strip()
-                            break
-                
-                # Fetch video info WITH DURATION
-                try:
-                    youtube = build('youtube', 'v3', developerKey=API_KEY)
-                    request_api = youtube.videos().list(
-                        part="snippet,contentDetails",  # CHANGED: Added contentDetails
-                        id=video_id
-                    )
-                    response = request_api.execute()
-                    
-                    if response['items']:
-                        video = response['items'][0]
+                if not API_KEY:
+                    video_info = {
+                        'error': 'YouTube API key is not configured. Please contact the administrator.'
+                    }
+                else:
+                    # Fetch video info WITH DURATION
+                    try:
+                        youtube = build('youtube', 'v3', developerKey=API_KEY)
+                        request_api = youtube.videos().list(
+                            part="snippet,contentDetails",
+                            id=video_id
+                        )
+                        response = request_api.execute()
                         
-                        # Get video duration
-                        duration_iso = video['contentDetails']['duration']  # PT1H15M30S
-                        duration_minutes = _parse_duration(duration_iso)
-                        
-                        video_info = {
-                            'title': video['snippet']['title'],
-                            'channel': video['snippet']['channelTitle'],
-                            'description': video['snippet']['description'],
-                            'video_id': video_id,
-                            'duration_minutes': duration_minutes,  # ADDED
-                            'has_transcript': False,
-                            'word_count': 0,
-                            'transcript_text': ''
-                        }
-                        
-                        # Try to get transcript
-                        try:
-                            from youtube_transcript_api import YouTubeTranscriptApi
-                            api = YouTubeTranscriptApi()
-                            transcript_list = api.list(video_id)
+                        if response.get('items') and len(response['items']) > 0:
+                            video = response['items'][0]
                             
-                            # Try English first, then Hindi, then any available transcript
+                            # Get video duration
+                            duration_iso = video['contentDetails']['duration']  # PT1H15M30S
+                            duration_minutes = _parse_duration(duration_iso)
+                            
+                            video_info = {
+                                'title': video['snippet']['title'],
+                                'channel': video['snippet']['channelTitle'],
+                                'description': video['snippet']['description'],
+                                'video_id': video_id,
+                                'duration_minutes': duration_minutes,
+                                'has_transcript': False,
+                                'word_count': 0,
+                                'transcript_text': ''
+                            }
+                            
+                            # Try to get transcript
                             try:
-                                transcript_obj = transcript_list.find_transcript(['en'])
-                            except:
+                                from youtube_transcript_api import YouTubeTranscriptApi
+                                api = YouTubeTranscriptApi()
+                                transcript_list = api.list(video_id)
+                                
+                                # Try English first, then Hindi, then any available transcript
                                 try:
-                                    transcript_obj = transcript_list.find_transcript(['hi'])  # Hindi
+                                    transcript_obj = transcript_list.find_transcript(['en'])
                                 except:
-                                    # Get the first available transcript
-                                    transcript_obj = transcript_list._manually_created_transcripts[0] if transcript_list._manually_created_transcripts else transcript_list._generated_transcripts[0]
-                            
-                            transcript_data = list(transcript_obj.fetch())
-                            
-                            video_info['has_transcript'] = True
-                            video_info['word_count'] = sum(len(snippet.text.split()) for snippet in transcript_data)
-                            video_info['transcript_sample'] = ' '.join([snippet.text for snippet in transcript_data[:5]])
-                            video_info['transcript_full'] = ' '.join([snippet.text for snippet in transcript_data])
-                            video_info['transcript_text'] = video_info['transcript_full']
-                            
-                            # Analyze the transcript
-                            try:
-                                from .services.analysis_service import TranscriptAnalyzer
-                                analyzer = TranscriptAnalyzer()
-                                analysis_results = analyzer.analyze_transcript(video_info['transcript_full'], transcript_data)
-                                video_info['analysis'] = analysis_results
-                                video_info['skill_level'] = analysis_results['skill_level']
+                                    try:
+                                        transcript_obj = transcript_list.find_transcript(['hi'])  # Hindi
+                                    except:
+                                        # Get the first available transcript
+                                        transcript_obj = transcript_list._manually_created_transcripts[0] if transcript_list._manually_created_transcripts else transcript_list._generated_transcripts[0]
+                                
+                                transcript_data = list(transcript_obj.fetch())
+                                
+                                video_info['has_transcript'] = True
+                                video_info['word_count'] = sum(len(snippet.text.split()) for snippet in transcript_data)
+                                video_info['transcript_sample'] = ' '.join([snippet.text for snippet in transcript_data[:5]])
+                                video_info['transcript_full'] = ' '.join([snippet.text for snippet in transcript_data])
+                                video_info['transcript_text'] = video_info['transcript_full']
+                                
+                                # Analyze the transcript
+                                try:
+                                    from .services.analysis_service import TranscriptAnalyzer
+                                    analyzer = TranscriptAnalyzer()
+                                    analysis_results = analyzer.analyze_transcript(video_info['transcript_full'], transcript_data)
+                                    video_info['analysis'] = analysis_results
+                                    video_info['skill_level'] = analysis_results['skill_level']
+                                except Exception as e:
+                                    video_info['analysis_error'] = str(e)
+                                
                             except Exception as e:
-                                video_info['analysis_error'] = str(e)
-                            
-                        except Exception as e:
-                            video_info['transcript_error'] = str(e)
-                            
-                except Exception as e:
-                    ErrorHandler.log_error(e, "YouTube API")
-                    video_info = {'error': ErrorHandler.get_user_friendly_error(e)}
+                                video_info['transcript_error'] = str(e)
+                        else:
+                            # Video not found or private/deleted
+                            video_info = {
+                                'error': f'Video not found (ID: {video_id}). The video might be private, deleted, or unavailable in your region.'
+                            }
+                                
+                    except Exception as e:
+                        ErrorHandler.log_error(e, "YouTube API")
+                        video_info = {'error': ErrorHandler.get_user_friendly_error(e)}
     
     return render(request, 'analyzer/video_analyse_QA.html', {
         'video_info': video_info,
