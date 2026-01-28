@@ -174,8 +174,14 @@ def compare_videos(request):
                         video = response['items'][0]
 
                         from youtube_transcript_api import YouTubeTranscriptApi
-                        api = YouTubeTranscriptApi()
-                        transcript_list = api.list(video_id)
+                        
+                        try:
+                            api = YouTubeTranscriptApi()
+                            transcript_list = api.list(video_id)
+                        except Exception as transcript_error:
+                            print(f"⚠️ Transcript blocked for {video_id}: {str(transcript_error)[:150]}")
+                            # Skip this video if transcript is blocked
+                            continue
 
                         try:
                             transcript_obj = transcript_list.find_transcript(['en'])

@@ -275,6 +275,13 @@ def video_analyse_QA(request):
     question = ""
     answer_lines = []
     
+    print(f"\n{'='*60}")
+    print(f"🔍 VIDEO ANALYSE REQUEST")
+    print(f"{'='*60}")
+    print(f"Method: {request.method}")
+    print(f"POST data: {dict(request.POST)}")
+    print(f"{'='*60}\n")
+    
     if request.method == 'POST':
         # Check if it's a Q&A question
         if 'question_mode' in request.POST:
@@ -341,18 +348,22 @@ def video_analyse_QA(request):
         # Original video analysis code
         elif 'video_url' in request.POST:
             video_url = request.POST['video_url']
+            print(f"📹 Video URL submitted: {video_url}")
             
             # Extract video ID using comprehensive parser
             video_id = extract_video_id(video_url)
+            print(f"🔑 Extracted video ID: {video_id}")
             
             if not video_id:
                 # Invalid URL format
+                print(f"❌ Invalid video URL format")
                 video_info = {
                     'error': 'Invalid YouTube URL. Please enter a valid YouTube video URL. Supported formats: youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/...'
                 }
             else:
                 # Get API key from settings
                 API_KEY = settings.YOUTUBE_API_KEY
+                print(f"🔑 API Key loaded: {API_KEY[:20]}..." if API_KEY else "❌ No API KEY")
                 
                 if not API_KEY:
                     video_info = {
@@ -361,12 +372,14 @@ def video_analyse_QA(request):
                 else:
                     # Fetch video info WITH DURATION
                     try:
+                        print(f"🌐 Calling YouTube API for video ID: {video_id}")
                         youtube = build('youtube', 'v3', developerKey=API_KEY)
                         request_api = youtube.videos().list(
                             part="snippet,contentDetails",
                             id=video_id
                         )
                         response = request_api.execute()
+                        print(f"✅ API Response received: {len(response.get('items', []))} items")
                         
                         if response.get('items') and len(response['items']) > 0:
                             video = response['items'][0]
@@ -389,8 +402,17 @@ def video_analyse_QA(request):
                             # Try to get transcript
                             try:
                                 from youtube_transcript_api import YouTubeTranscriptApi
-                                api = YouTubeTranscriptApi()
-                                transcript_list = api.list(video_id)
+                                
+                                # Try with cookies first (helps bypass cloud IP blocks)
+                                try:
+                                    # If you have cookies.txt, use it here
+                                    api = YouTubeTranscriptApi()
+                                    transcript_list = api.list(video_id)
+                                except Exception as cookie_error:
+                                    print(f"⚠️ Transcript fetch with cookies failed: {cookie_error}")
+                                    # Fallback to regular API
+                                    api = YouTubeTranscriptApi()
+                                    transcript_list = api.list(video_id)
                                 
                                 # Try English first, then Hindi, then any available transcript
                                 try:
@@ -421,7 +443,9 @@ def video_analyse_QA(request):
                                     video_info['analysis_error'] = str(e)
                                 
                             except Exception as e:
+                                print(f"❌ Transcript Error: {str(e)[:200]}")
                                 video_info['transcript_error'] = str(e)
+                                video_info['transcript_blocked'] = 'RequestBlocked' in str(e)
                         else:
                             # Video not found or private/deleted
                             video_info = {

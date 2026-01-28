@@ -961,7 +961,17 @@
                         <i class="bi bi-exclamation-circle"></i> Transcript Not Available
                     </div>
                     <p style="color: var(--text-main);">
+                        {% if video_info.transcript_blocked %}
+                        <strong>YouTube is blocking transcript requests from cloud servers.</strong><br>
+                        This happens because you're running the app in a cloud environment (GitHub Codespaces, AWS, etc.).<br><br>
+                        <strong>Solutions:</strong><br>
+                        • Run the app locally on your computer<br>
+                        • Use cookies authentication (see README)<br>
+                        • Use a proxy server<br><br>
+                        Analysis is limited to video metadata only.
+                        {% else %}
                         This video doesn't have captions available. Analysis is based on video metadata only.
+                        {% endif %}
                     </p>
                 </div>
                 {% endif %}
