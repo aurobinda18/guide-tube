@@ -193,14 +193,15 @@ def compare_videos(request):
                         continue
 
                     try:
+                        # ✅ IMPORTANT: Use same part as working analyze feature
                         request_api = youtube.videos().list(
-                            part="snippet",
+                            part="snippet,contentDetails",
                             id=video_id
                         )
                         
                         print(f"🌐 Calling YouTube API for: {video_id}")
                         response = request_api.execute()
-                        print(f"✅ API Response received: {response.get('pageInfo', {})} items")
+                        print(f"✅ API Response received: {len(response.get('items', []))} items")
                         
                     except Exception as api_error:
                         print(f"❌ API Error for {video_id}: {str(api_error)[:150]}")
