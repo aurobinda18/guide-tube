@@ -110,12 +110,28 @@ def calculate_recommendation_score(video, target_level):
     else:
         level_match_score = 30
 
-    readability = video['analysis']['readability'].get('normalized', 50)
-    if readability == 'N/A':
+    # Safe access to readability with proper fallback
+    try:
+        readability = video['analysis']['readability'].get('normalized', 50)
+        if readability == 'N/A':
+            readability = 50
+        readability = float(readability) if readability else 50
+    except (KeyError, TypeError, ValueError):
         readability = 50
 
-    jargon = video['analysis']['jargon'].get('percentage', 0)
-    pacing = video['analysis']['pacing'].get('words_per_minute', 150)
+    # Safe access to jargon percentage
+    try:
+        jargon = video['analysis']['jargon'].get('percentage', 0)
+        jargon = float(jargon) if jargon else 0
+    except (KeyError, TypeError, ValueError):
+        jargon = 0
+
+    # Safe access to pacing
+    try:
+        pacing = video['analysis']['pacing'].get('words_per_minute', 150)
+        pacing = float(pacing) if pacing else 150
+    except (KeyError, TypeError, ValueError):
+        pacing = 150
 
     if 120 <= pacing <= 160:
         pacing_score = 100
@@ -289,10 +305,14 @@ def compare_videos(request):
                     }
 
                     for video in videos_data:
-                        video['recommendation_score'] = calculate_recommendation_score(
-                            video,
-                            target_level
-                        )
+                        try:
+                            video['recommendation_score'] = calculate_recommendation_score(
+                                video,
+                                target_level
+                            )
+                        except Exception as score_error:
+                            print(f"⚠️ Error calculating score for {video.get('title', 'Unknown')}: {score_error}")
+                            video['recommendation_score'] = 50  # Default middle score
 
                     videos_data.sort(
                         key=lambda x: x['recommendation_score'],
@@ -301,30 +321,46 @@ def compare_videos(request):
 
                     comparison_results['recommended_video'] = videos_data[0]
                     comparison_results['videos'] = videos_data
+                    
                     # Generate explanations for recommended video
-                    explanation_service = ExplanationService()
-                    comparison_results['why_this_video'] = explanation_service.generate_why_this_video(
-                        videos_data[0], 
-                        target_level
-                    )
+                    try:
+                        explanation_service = ExplanationService()
+                        comparison_results['why_this_video'] = explanation_service.generate_why_this_video(
+                            videos_data[0], 
+                            target_level
+                        )
+                    except Exception as exp_error:
+                        print(f"⚠️ Error generating explanation: {exp_error}")
+                        comparison_results['why_this_video'] = "Unable to generate explanation"
+                    
                     # Make sure we have transcript text in the video data
-                    comparison_results['pre_watch_summary'] = explanation_service.generate_pre_watch_summary(
-                        videos_data[0]  # Now has transcript_text
-                    )
+                    try:
+                        comparison_results['pre_watch_summary'] = explanation_service.generate_pre_watch_summary(
+                            videos_data[0]  # Now has transcript_text
+                        )
+                    except Exception as summary_error:
+                        print(f"⚠️ Error generating summary: {summary_error}")
+                        comparison_results['pre_watch_summary'] = "Unable to generate summary"
+                    
                     # Add learning path suggestions
-                    learning_service = LearningPathService()
+                    try:
+                        learning_service = LearningPathService()
 
-                    # Get chapters for the recommended video
-                    chapter_extractor = ChapterExtractor()
-                    description = videos_data[0].get('description', '')
-                    chapters = chapter_extractor.extract_chapters_from_description(description)
+                        # Get chapters for the recommended video
+                        chapter_extractor = ChapterExtractor()
+                        description = videos_data[0].get('description', '')
+                        chapters = chapter_extractor.extract_chapters_from_description(description)
 
-                    comparison_results['learning_path'] = learning_service.generate_learning_path(
-                        videos_data[0]['title'],
-                        chapters,
-                        videos_data[0]['skill_level'],
-                        videos_data[0].get('word_count', 0)
-                    )
+                        comparison_results['learning_path'] = learning_service.generate_learning_path(
+                            videos_data[0]['title'],
+                            chapters,
+                            videos_data[0]['skill_level'],
+                            videos_data[0].get('word_count', 0)
+                        )
+                    except Exception as path_error:
+                        print(f"⚠️ Error generating learning path: {path_error}")
+                        comparison_results['learning_path'] = "Unable to generate learning path"
+                    
                     def get_level_display_name(level):
                         return level.title()
 
