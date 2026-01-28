@@ -401,11 +401,19 @@
             font-family: inherit;
             font-size: 1rem;
             width: 100%;
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+
+        .url-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
         }
 
         .url-input:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(230, 33, 23, 0.1);
+            outline: none;
         }
 
         .skill-select {
@@ -416,6 +424,19 @@
             color: var(--text-main);
             font-family: inherit;
             font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .skill-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(230, 33, 23, 0.1);
+            outline: none;
+        }
+
+        .skill-select option {
+            background: var(--surface);
+            color: var(--text-main);
         }
 
         /* Recommendation Banner */
@@ -854,6 +875,21 @@
                         <i class="bi bi-exclamation-triangle"></i> Error
                     </div>
                     <p>{{ comparison_results.error }}</p>
+                    
+                    <!-- Show failed videos details if available -->
+                    {% if comparison_results.failed_videos %}
+                        <div style="margin-top: 16px; padding: 12px; background: rgba(220, 53, 69, 0.05); border-radius: 8px;">
+                            <strong>Failed Videos:</strong>
+                            <ul style="margin: 8px 0 0 20px;">
+                                {% for failed in comparison_results.failed_videos %}
+                                    <li style="margin-bottom: 4px;">
+                                        <strong>{{ failed.video_id|default:"Invalid URL" }}</strong>: {{ failed.error }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
                     <a href="/compare/" class="btn btn-secondary" style="margin-top: 16px;">Try Again</a>
                 </div>
             {% else %}

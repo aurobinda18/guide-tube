@@ -160,9 +160,19 @@ def compare_videos(request):
                 youtube = get_youtube_api()
                 analyzer = TranscriptAnalyzer()
                 videos_data = []
+                failed_videos = []  # Track failed videos
 
                 for url in video_urls:
                     video_id = extract_video_id(url)
+                    
+                    # ✅ CHECK IF VIDEO ID IS VALID
+                    if not video_id:
+                        failed_videos.append({
+                            'url': url,
+                            'error': 'Invalid YouTube URL format'
+                        })
+                        print(f"❌ Invalid URL format: {url}")
+                        continue
 
                     request_api = youtube.videos().list(
                         part="snippet",
@@ -180,8 +190,22 @@ def compare_videos(request):
                             transcript_list = api.list(video_id)
                         except Exception as transcript_error:
                             print(f"⚠️ Transcript blocked for {video_id}: {str(transcript_error)[:150]}")
+                            failed_videos.append({
+                                'url': url,
+                                'video_id': video_id,
+                                'error': 'Transcript unavailable or blocked'
+                            })
                             # Skip this video if transcript is blocked
                             continue
+                    else:
+                        # Video not found
+                        failed_videos.append({
+                            'url': url,
+                            'video_id': video_id,
+                            'error': 'Video not found. It may be private, deleted, or unavailable.'
+                        })
+                        print(f"❌ Video not found: {video_id}")
+                        continue
 
                         try:
                             transcript_obj = transcript_list.find_transcript(['en'])
@@ -235,80 +259,108 @@ def compare_videos(request):
                             'transcript_text': transcript_text
                         })
 
-                comparison_results = {
-                    'videos': videos_data,
-                    'target_level': target_level,
-                    'recommended_video': None,
-                    'comparison_metrics': {}
-                }
+                # ✅ CHECK IF ANY VIDEOS WERE SUCCESSFULLY PROCESSED
+                if not videos_data:
+                    # All videos failed
+                    error_msg = "Unable to process any videos. "
+                    if failed_videos:
+                        error_msg += "Errors: " + "; ".join([f"{v.get('video_id', 'Unknown')}: {v['error']}" for v in failed_videos])
+                    comparison_results = {
+                        'error': error_msg,
+                        'failed_videos': failed_videos
+                    }
+                    messages.error(request, error_msg)
+                elif len(videos_data) < 2:
+                    # Less than 2 videos succeeded
+                    comparison_results = {
+                        'error': f'Only {len(videos_data)} video(s) could be processed. Please provide at least 2 valid YouTube videos.',
+                        'failed_videos': failed_videos,
+                        'videos': videos_data
+                    }
+                    messages.warning(request, f'Only {len(videos_data)} video(s) could be processed. Need at least 2 for comparison.')
+                else:
+                    # Success - 2 or more videos processed
+                    comparison_results = {
+                        'videos': videos_data,
+                        'target_level': target_level,
+                        'recommended_video': None,
+                        'comparison_metrics': {},
+                        'failed_videos': failed_videos  # Show which ones failed
+                    }
 
-                for video in videos_data:
-                    video['recommendation_score'] = calculate_recommendation_score(
-                        video,
-                        target_level
-                    )
+                    for video in videos_data:
+                        video['recommendation_score'] = calculate_recommendation_score(
+                            video,
+                            target_level
+                        )
 
-                videos_data.sort(
-                    key=lambda x: x['recommendation_score'],
-                    reverse=True
-                )
-
-                comparison_results['recommended_video'] = videos_data[0]
-                comparison_results['videos'] = videos_data
-                # Generate explanations for recommended video
-                explanation_service = ExplanationService()
-                comparison_results['why_this_video'] = explanation_service.generate_why_this_video(
-                    videos_data[0], 
-                    target_level
-                )
-                # Make sure we have transcript text in the video data
-                comparison_results['pre_watch_summary'] = explanation_service.generate_pre_watch_summary(
-                    videos_data[0]  # Now has transcript_text
-                )
-                # Add learning path suggestions
-                learning_service = LearningPathService()
-
-                # Get chapters for the recommended video
-                chapter_extractor = ChapterExtractor()
-                description = videos_data[0].get('description', '')
-                chapters = chapter_extractor.extract_chapters_from_description(description)
-
-                comparison_results['learning_path'] = learning_service.generate_learning_path(
-                    videos_data[0]['title'],
-                    chapters,
-                    videos_data[0]['skill_level'],
-                    videos_data[0].get('word_count', 0)
-                )
-                def get_level_display_name(level):
-                    return level.title()
-
-                level_videos = [
-                    v for v in videos_data
-                    if v['skill_level'].lower() == target_level
-                ]
-
-                if level_videos:
-                    level_videos.sort(
+                    videos_data.sort(
                         key=lambda x: x['recommendation_score'],
                         reverse=True
                     )
-                    comparison_results[f'best_for_{target_level}'] = level_videos[0]
-                    comparison_results['best_for_level_display'] = get_level_display_name(
+
+                    comparison_results['recommended_video'] = videos_data[0]
+                    comparison_results['videos'] = videos_data
+                    # Generate explanations for recommended video
+                    explanation_service = ExplanationService()
+                    comparison_results['why_this_video'] = explanation_service.generate_why_this_video(
+                        videos_data[0], 
                         target_level
                     )
-                else:
-                    level_values = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
-                    closest_video = min(
-                        videos_data,
-                        key=lambda v: abs(
-                            level_values.get(v['skill_level'].lower(), 2) -
-                            level_values.get(target_level, 2)
+                    # Make sure we have transcript text in the video data
+                    comparison_results['pre_watch_summary'] = explanation_service.generate_pre_watch_summary(
+                        videos_data[0]  # Now has transcript_text
+                    )
+                    # Add learning path suggestions
+                    learning_service = LearningPathService()
+
+                    # Get chapters for the recommended video
+                    chapter_extractor = ChapterExtractor()
+                    description = videos_data[0].get('description', '')
+                    chapters = chapter_extractor.extract_chapters_from_description(description)
+
+                    comparison_results['learning_path'] = learning_service.generate_learning_path(
+                        videos_data[0]['title'],
+                        chapters,
+                        videos_data[0]['skill_level'],
+                        videos_data[0].get('word_count', 0)
+                    )
+                    def get_level_display_name(level):
+                        return level.title()
+
+                    level_videos = [
+                        v for v in videos_data
+                        if v['skill_level'].lower() == target_level
+                    ]
+
+                    if level_videos:
+                        level_videos.sort(
+                            key=lambda x: x['recommendation_score'],
+                            reverse=True
                         )
-                    )
-                    comparison_results[f'best_for_{target_level}'] = closest_video
-                    comparison_results['best_for_level_display'] = get_level_display_name(
-                        target_level
-                    )
+                        comparison_results[f'best_for_{target_level}'] = level_videos[0]
+                        comparison_results['best_for_level_display'] = get_level_display_name(
+                            target_level
+                        )
+                    else:
+                        level_values = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
+                        closest_video = min(
+                            videos_data,
+                            key=lambda v: abs(
+                                level_values.get(v['skill_level'].lower(), 2) -
+                                level_values.get(target_level, 2)
+                            )
+                        )
+                        comparison_results[f'best_for_{target_level}'] = closest_video
+                        comparison_results['best_for_level_display'] = get_level_display_name(
+                            target_level
+                        )
+                    
+                    # Show success message with any failed videos
+                    if failed_videos:
+                        messages.warning(request, f'{len(videos_data)} videos successfully compared. {len(failed_videos)} video(s) failed.')
+                    else:
+                        messages.success(request, f'Successfully compared {len(videos_data)} videos!')
 
             except Exception as e:
                 ErrorHandler.log_error(e, "Video Comparison")

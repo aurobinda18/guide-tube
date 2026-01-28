@@ -135,6 +135,11 @@
             transition: all 0.2s;
         }
 
+        .form-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
         .form-input:focus {
             outline: none;
             border-color: var(--primary);
@@ -230,23 +235,36 @@
         }
 
         .error-message {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(220, 53, 69, 0.12);
+            color: #c92a2a;
+            padding: 14px;
+            border-radius: 10px;
             margin-bottom: 20px;
             font-size: 0.9rem;
             border-left: 4px solid #dc3545;
+            font-weight: 500;
         }
 
         .success-message {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(40, 167, 69, 0.12);
+            color: #2b8a3e;
+            padding: 14px;
+            border-radius: 10px;
             margin-bottom: 20px;
             font-size: 0.9rem;
             border-left: 4px solid #28a745;
+            font-weight: 500;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .error-message {
+                background: rgba(220, 53, 69, 0.15);
+                color: #ff6b6b;
+            }
+            .success-message {
+                background: rgba(40, 167, 69, 0.15);
+                color: #51cf66;
+            }
         }
 
         .password-strength {
