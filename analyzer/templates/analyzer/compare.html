@@ -407,7 +407,13 @@
 
         .url-input::placeholder {
             color: var(--text-secondary);
-            opacity: 0.7;
+            opacity: 0.8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .url-input::placeholder {
+                opacity: 0.7;
+            }
         }
 
         .url-input:focus {
@@ -475,11 +481,20 @@
 
         .reason-chip {
             font-size: 0.85rem;
-            color: var(--text-secondary);
+            color: var(--text-main);
+            opacity: 0.8;
+            font-weight: 500;
             background: var(--surface);
             padding: 6px 12px;
             border-radius: 8px;
             border: 1px solid var(--border-light);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .reason-chip {
+                background: rgba(255, 255, 255, 0.05);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
         }
 
         /* Comparison Table */
@@ -518,7 +533,15 @@
 
         .table-vid-chan {
             font-size: 0.85rem;
-            color: var(--text-secondary);
+            color: var(--text-main);
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .table-vid-chan {
+                color: #BBBBBB;
+            }
         }
 
         .score-cell {
@@ -567,7 +590,9 @@
 
         .stat-title {
             font-size: 0.9rem;
-            color: var(--text-secondary);
+            color: var(--text-main);
+            opacity: 0.8;
+            font-weight: 600;
             margin-bottom: 8px;
         }
 
@@ -579,8 +604,16 @@
 
         .stat-subtitle {
             font-size: 0.85rem;
-            color: var(--text-secondary);
+            color: var(--text-main);
+            opacity: 0.7;
+            font-weight: 500;
             margin-top: 4px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .stat-subtitle {
+                color: #BBBBBB;
+            }
         }
 
         /* Why This Video Section */
@@ -616,15 +649,53 @@
         .why-list li {
             margin-bottom: 8px;
             font-size: 0.95rem;
-            color: var(--text-secondary);
+            color: var(--text-main);
+            opacity: 0.85;
+            font-weight: 500;
             display: flex;
             gap: 8px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .why-list li {
+                color: #DDDDDD;
+            }
         }
 
         .why-list li:before {
             content: '•';
             color: var(--primary);
             font-weight: bold;
+        }
+
+        /* Better visibility for muted/secondary text */
+        .text-muted {
+            color: var(--text-secondary) !important;
+            opacity: 1 !important;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .text-muted {
+                color: #AAAAAA !important;
+            }
+        }
+
+        /* No data messages - make them more visible */
+        .no-data-text {
+            color: var(--text-main) !important;
+            opacity: 0.6;
+            font-weight: 500;
+            background: var(--bg-body);
+            padding: 4px 12px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .no-data-text {
+                background: rgba(255, 255, 255, 0.05);
+                color: #CCCCCC !important;
+            }
         }
 
         /* Tips Section */
@@ -828,7 +899,7 @@
                     <button type="button" id="add-video-btn" class="btn btn-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                         <i class="bi bi-plus-circle"></i> Add Another Video
                     </button>
-                    <small style="margin-left: 12px; font-size: 0.85rem; color: var(--text-main);" class="white-heading">Add up to 6 videos total</small>
+                    <small style="margin-left: 12px; font-size: 0.85rem; color: var(--text-main); opacity: 0.8; font-weight: 500;">Add up to 6 videos total</small>
                 </div>
 
                 <!-- Skill Level Selection and Submit -->
@@ -842,7 +913,7 @@
                             <option value="intermediate">Intermediate</option>
                             <option value="advanced">Advanced</option>
                         </select>
-                        <small style="display: block; margin-top: 8px; font-size: 0.85rem; color: var(--text-main);" class="white-heading">
+                        <small style="display: block; margin-top: 8px; font-size: 0.85rem; color: var(--text-main); opacity: 0.8; font-weight: 500;">
                             We'll recommend the best video for this level
                         </small>
                     </div>
@@ -859,8 +930,8 @@
 
                 <!-- Tip Section -->
                 <div style="margin-top: 24px; text-align: center;">
-                    <small style="color: var(--text-secondary);">
-                        <strong>Tip:</strong> Compare videos on the same topic from different instructors
+                    <small style="color: var(--text-main); opacity: 0.8; font-weight: 500;">
+                        <strong style="color: var(--primary);">Tip:</strong> Compare videos on the same topic from different instructors
                     </small>
                 </div>
             </form>
@@ -874,15 +945,15 @@
                     <div style="color: #dc3545; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <i class="bi bi-exclamation-triangle"></i> Error
                     </div>
-                    <p>{{ comparison_results.error }}</p>
+                    <p style="color: var(--text-main); font-weight: 500;">{{ comparison_results.error }}</p>
                     
                     <!-- Show failed videos details if available -->
                     {% if comparison_results.failed_videos %}
-                        <div style="margin-top: 16px; padding: 12px; background: rgba(220, 53, 69, 0.05); border-radius: 8px;">
-                            <strong>Failed Videos:</strong>
-                            <ul style="margin: 8px 0 0 20px;">
+                        <div style="margin-top: 16px; padding: 12px; background: rgba(220, 53, 69, 0.05); border-radius: 8px; border: 1px solid rgba(220, 53, 69, 0.2);">
+                            <strong style="color: var(--text-main);">Failed Videos:</strong>
+                            <ul style="margin: 8px 0 0 20px; color: var(--text-main);">
                                 {% for failed in comparison_results.failed_videos %}
-                                    <li style="margin-bottom: 4px;">
+                                    <li style="margin-bottom: 4px; font-weight: 500;">
                                         <strong>{{ failed.video_id|default:"Invalid URL" }}</strong>: {{ failed.error }}
                                     </li>
                                 {% endfor %}
@@ -914,7 +985,7 @@
                         </div>
                         
                         <h2>{{ comparison_results.recommended_video.title }}</h2>
-                        <p style="color: var(--text-secondary);">{{ comparison_results.recommended_video.channel }}</p>
+                        <p style="color: var(--text-main); opacity: 0.7; font-weight: 500;">{{ comparison_results.recommended_video.channel }}</p>
 
                         <!-- Skill Level Badge -->
                         <div style="margin: 12px 0;">
@@ -932,15 +1003,15 @@
                                 </span>
                             {% endif %}
 
-                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">
-                                Best match for <strong>{{ comparison_results.target_level|title }}</strong>
+                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-main); opacity: 0.75; font-weight: 500;">
+                                Best match for <strong style="color: var(--primary);">{{ comparison_results.target_level|title }}</strong>
                             </p>
                         </div>
 
                         <!-- Warning for advanced level mismatch -->
                         {% if comparison_results.target_level == 'advanced' and comparison_results.recommended_video.skill_level != 'Advanced' %}
                         <div class="warning-alert">
-                            <small>⚠️ <strong>Note:</strong> No Advanced videos found in your selection. 
+                            <small style="color: var(--text-main); font-weight: 500;">⚠️ <strong>Note:</strong> No Advanced videos found in your selection. 
                             Showing the closest match instead.</small>
                         </div>
                         {% endif %}
@@ -980,7 +1051,7 @@
                         <div class="why-title">
                             <i class="bi bi-question-circle"></i> Why This Video?
                         </div>
-                        <div style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        <div style="font-size: 0.95rem; color: var(--text-main); opacity: 0.8; margin-bottom: 12px; font-weight: 500;">
                             Why It's Recommended:
                         </div>
                         <ul class="why-list">
@@ -1086,18 +1157,18 @@
                                     <!-- Readability -->
                                     <td>
                                         {% if video.analysis.readability.flesch_score and video.analysis.readability.flesch_score != 'N/A' %}
-                                            {{ video.analysis.readability.flesch_score|floatformat:1 }}/100
+                                            <strong>{{ video.analysis.readability.flesch_score|floatformat:1 }}/100</strong>
                                             <small class="text-muted d-block" style="font-size: 0.75rem;">{{ video.analysis.readability.interpretation }}</small>
                                         {% else %}
-                                            <span class="text-muted">No transcript</span>
+                                            <span class="no-data-text">No transcript</span>
                                         {% endif %}
                                     </td>
                                     
                                     <!-- Jargon -->
-                                    <td>{{ video.analysis.jargon.percentage }}%</td>
+                                    <td><strong>{{ video.analysis.jargon.percentage }}%</strong></td>
                                     
                                     <!-- Pace -->
-                                    <td>{{ video.analysis.pacing.words_per_minute }} WPM</td>
+                                    <td><strong>{{ video.analysis.pacing.words_per_minute }}</strong> WPM</td>
                                     
                                     <!-- Comments -->
                                     <td>
@@ -1116,12 +1187,12 @@
                                                 </span>
                                             {% endif %}
                                         {% else %}
-                                            <span style="color: var(--text-secondary); font-size: 0.85rem;">-</span>
+                                            <span class="no-data-text">No comments</span>
                                         {% endif %}
                                     </td>
                                     
                                     <!-- Word Count -->
-                                    <td>{{ video.word_count }}</td>
+                                    <td><strong>{{ video.word_count }}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
