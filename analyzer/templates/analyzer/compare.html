@@ -1041,7 +1041,7 @@
                                     <th>Video</th>
                                     <th>Channel</th>
                                     <th>Level</th>
-                                    <th>Score</th>
+                                    <th>Match Score</th>
                                     <th>Readability</th>
                                     <th>Jargon</th>
                                     <th>Pace</th>
@@ -1079,19 +1079,17 @@
                                     
                                     <!-- Score -->
                                     <td class="score-cell">
-                                        {% if video.video_id == comparison_results.recommended_video.video_id %}
-                                            {{ video.recommendation_score|default:video.level_score|floatformat:1 }}
-                                        {% else %}
-                                            {{ video.level_score }}/8
-                                        {% endif %}
+                                        <strong>{{ video.recommendation_score|floatformat:1 }}%</strong>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">(Skill: {{ video.level_score }}/9)</small>
                                     </td>
                                     
                                     <!-- Readability -->
                                     <td>
-                                        {% if video.analysis.readability.flesch_score != 'N/A' %}
+                                        {% if video.analysis.readability.flesch_score and video.analysis.readability.flesch_score != 'N/A' %}
                                             {{ video.analysis.readability.flesch_score|floatformat:1 }}/100
+                                            <small class="text-muted d-block" style="font-size: 0.75rem;">{{ video.analysis.readability.interpretation }}</small>
                                         {% else %}
-                                            {{ video.analysis.readability.interpretation }}
+                                            <span class="text-muted">No transcript</span>
                                         {% endif %}
                                     </td>
                                     

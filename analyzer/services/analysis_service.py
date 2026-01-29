@@ -57,14 +57,17 @@ class TranscriptAnalyzer:
         
         try:
             # Flesch Reading Ease: Higher = easier to read
-            flesch_score = textstat.flesch_reading_ease(text)
+            # Note: Can produce negative values for extremely difficult text
+            flesch_score_raw = textstat.flesch_reading_ease(text)
+            
+            # Clamp to 0-100 range (Flesch formula can go negative for very technical content)
+            flesch_score = max(0, min(100, flesch_score_raw))
             
             # Flesch-Kincaid Grade Level: US grade level needed
             fk_grade = textstat.flesch_kincaid_grade(text)
             
-            # Convert to 0-100 scale (for our display)
-            # Flesch score: 0-30 (college grad), 30-50 (college), 50-60 (high school), 60-70 (8th-9th), 70-80 (7th), 80-90 (6th), 90-100 (5th)
-            normalized_score = max(0, min(100, flesch_score))
+            # Use clamped score for display and interpretation
+            normalized_score = flesch_score
             
             return {
                 'flesch_score': round(flesch_score, 1),
