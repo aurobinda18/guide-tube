@@ -170,10 +170,21 @@ def compare_videos(request):
                 video_urls.append(request.POST[url_key].strip())
 
         target_level = request.POST.get('target_level', 'beginner')
+        
+        print(f"\n{'='*60}")
+        print(f"📹 COMPARISON REQUEST RECEIVED")
+        print(f"{'='*60}")
+        print(f"URLs received: {len(video_urls)}")
+        for idx, url in enumerate(video_urls, 1):
+            print(f"  {idx}. {url[:80]}")
+        print(f"Target level: {target_level}")
+        print(f"{'='*60}\n")
 
         if len(video_urls) >= 2:
             try:
+                print(f"🔑 Loading YouTube API...")
                 youtube = get_youtube_api()
+                print(f"✅ YouTube API loaded successfully")
                 analyzer = TranscriptAnalyzer()
                 videos_data = []
                 failed_videos = []  # Track failed videos
@@ -201,10 +212,15 @@ def compare_videos(request):
                         
                         print(f"🌐 Calling YouTube API for: {video_id}")
                         response = request_api.execute()
-                        print(f"✅ API Response received: {len(response.get('items', []))} items")
+                        
+                        items_count = len(response.get('items', []))
+                        print(f"✅ API Response received: {items_count} item(s)")
+                        print(f"   Response keys: {list(response.keys())}")
                         
                     except Exception as api_error:
-                        print(f"❌ API Error for {video_id}: {str(api_error)[:150]}")
+                        print(f"❌ API Error for {video_id}: {str(api_error)}")
+                        import traceback
+                        traceback.print_exc()
                         failed_videos.append({
                             'url': url,
                             'video_id': video_id,
@@ -212,8 +228,12 @@ def compare_videos(request):
                         })
                         continue
 
-                    if not response.get('items') or len(response.get('items', [])) == 0:
+                    items = response.get('items', [])
+                    print(f"   Items list: {items}")
+                    
+                    if not items or len(items) == 0:
                         # Video not found
+                        print(f"❌ No items returned from API")
                         failed_videos.append({
                             'url': url,
                             'video_id': video_id,
@@ -223,7 +243,7 @@ def compare_videos(request):
                         continue
 
                     print(f"✅ Video found: {video_id}")
-                    video = response['items'][0]
+                    video = items[0]
 
                     from youtube_transcript_api import YouTubeTranscriptApi
                     
