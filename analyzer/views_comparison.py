@@ -133,19 +133,29 @@ def calculate_recommendation_score(video, target_level):
     except (KeyError, TypeError, ValueError):
         pacing = 150
 
-    if 120 <= pacing <= 160:
-        pacing_score = 100
-    elif pacing < 120:
-        pacing_score = 80 - (120 - pacing)
-    else:
-        pacing_score = 80 - (pacing - 160)
+    # PROPER PACING SCORE: 130-160 WPM = ideal for learning (research-based)
+    if 130 <= pacing <= 165:
+        pacing_score = 100  # Perfect learning pace
+    elif 110 <= pacing < 130:
+        # Slower than ideal: 100 at 110, declining to 80 at 130
+        pacing_score = 100 - (130 - pacing) * 1.0
+    elif 165 < pacing <= 185:
+        # Faster than ideal: 100 at 165, declining to 60 at 185
+        pacing_score = 100 - (pacing - 165) * 2.0
+    elif pacing < 110:
+        # Too slow
+        pacing_score = max(40, 100 - (110 - pacing) * 1.5)
+    else:  # pacing > 185
+        # Too fast
+        pacing_score = max(30, 100 - (pacing - 185) * 2.5)
 
     pacing_score = max(0, min(100, pacing_score))
 
+    # PROPER CONTENT SCORE WEIGHTING
     content_score = (
-        readability * 0.5 +
-        (100 - min(jargon * 10, 100)) * 0.3 +
-        pacing_score * 0.2
+        readability * 0.4 +  # Readability is important
+        (100 - min(jargon * 8, 100)) * 0.35 +  # Jargon penalty (8% = 64 penalty)
+        pacing_score * 0.25  # Pacing matters for learning
     )
 
     overall_score = (level_match_score * 0.7) + (content_score * 0.3)

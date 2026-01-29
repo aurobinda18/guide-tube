@@ -76,20 +76,21 @@ class TranscriptAnalyzer:
             return {'flesch_score': 0, 'fk_grade': 0, 'normalized': 0, 'interpretation': 'Not enough text'}
     
     def interpret_readability(self, score):
+        # Standard Flesch Reading Ease interpretation
         if score >= 90:
-            return "Very Easy (5th grade)"
+            return "Very Easy (5th grade)" 
         elif score >= 80:
-            return "Easy (6th grade)"
+            return "Easy (6th-7th grade)"
         elif score >= 70:
-            return "Fairly Easy (7th grade)"
+            return "Fairly Easy (8th grade)"
         elif score >= 60:
-            return "Standard (8th-9th grade)"
+            return "Standard (9th-10th grade)"  # Good for tutorials
         elif score >= 50:
-            return "Fairly Difficult (High School)"
+            return "Fairly Difficult (11th-12th grade)"
         elif score >= 30:
-            return "Difficult (College)"
+            return "Difficult (College level)"
         else:
-            return "Very Difficult (College Graduate)"
+            return "Very Difficult (Professional)"
     
     def analyze_jargon(self, text):
         """Analyze technical jargon density"""
@@ -113,12 +114,17 @@ class TranscriptAnalyzer:
         }
     
     def interpret_jargon(self, percentage):
-        if percentage < 8:  # Increased from 5
-            return "Low (Beginner-friendly)"
-        elif percentage < 20:  # Increased from 15
-            return "Moderate (Intermediate)"
+        # Standard for educational/tutorial content
+        if percentage < 5:
+            return "Very Low (Extremely beginner-friendly)"
+        elif percentage < 10:
+            return "Low (Beginner-friendly)"  # Good for tutorials
+        elif percentage < 15:
+            return "Moderate (Intermediate level)"
+        elif percentage < 25:
+            return "High (Advanced concepts)"
         else:
-            return "High (Advanced)"
+            return "Very High (Expert level)"
     
     def analyze_pacing(self, transcript_data):
         """Analyze how fast concepts are introduced"""
@@ -140,53 +146,59 @@ class TranscriptAnalyzer:
         }
     
     def interpret_pacing(self, wpm):
-        if wpm < 160:  # Increased from 120
-            return "Slow (Good for beginners)"
-        elif wpm < 200:  # Increased from 180
-            return "Moderate (Average)"
+        # Research: 130-160 WPM optimal for learning, 160-180 for experienced
+        if wpm < 110:
+            return "Very Slow (May feel dragging)"
+        elif wpm < 140:
+            return "Slow (Very beginner-friendly)"
+        elif wpm < 170:
+            return "Moderate (Ideal for learning)"  # Sweet spot!
+        elif wpm < 190:
+            return "Fast (For experienced learners)"
         else:
-            return "Fast (Challenging for beginners)"
+            return "Very Fast (Challenging to follow)"
     
     def determine_skill_level(self, analysis_results):
-        """Determine if video is Beginner/Intermediate/Advanced"""
+        """Determine if video is Beginner/Intermediate/Advanced using research-based thresholds"""
         readability = analysis_results.get('readability', {}).get('normalized', 0)
         jargon = analysis_results.get('jargon', {}).get('percentage', 0)
         pacing = analysis_results.get('pacing', {}).get('words_per_minute', 0)
         
         score = 0
         
-        # SCORING SYSTEM - ADJUSTED FOR TUTORIAL VIDEOS
-        # Readability: Tutorials can be slightly complex but still beginner-friendly
-        if readability > 50:  # Lowered from 60
+        # READABILITY: 60-80 = good for tutorials (9th-10th grade level)
+        if readability >= 60:  # Easy to understand
             score += 3
-        elif readability > 30:  # Lowered from 40
+        elif readability >= 40:  # Moderate difficulty
             score += 2
-        else:
+        else:  # Hard to read
             score += 1
         
-        # Jargon: Programming tutorials NEED some technical terms
-        if jargon < 8:  # Increased from 5 (tutorials need terms like "variable", "function")
+        # JARGON: 3-10% = beginner-friendly for tutorial content
+        if jargon < 5:  # Very beginner-friendly
             score += 3
-        elif jargon < 20:  # Increased from 15
+        elif jargon < 12:  # Still good for beginners
             score += 2
-        else:
+        elif jargon < 20:  # Getting advanced
             score += 1
-        
-        # Pacing: Tutorials can be faster paced
-        if pacing < 160:  # Increased from 150
-            score += 2
-        elif pacing < 200:  # Increased from 180
-            score += 1
-        else:
+        else:  # Expert level
             score += 0
         
-        # ADJUSTED THRESHOLDS
-        if score >= 6:  # Lowered from 7
-            return "Beginner", score, "Excellent for beginners"
-        elif score >= 4:  # Lowered from 4 (same)
-            return "Intermediate", score, "Suitable for intermediate learners"
-        else:
-            return "Advanced", score, "Best for advanced learners"
+        # PACING: 130-160 WPM = optimal for learning
+        if 130 <= pacing <= 170:  # Ideal learning pace
+            score += 3
+        elif pacing < 130 or (170 < pacing <= 190):  # Slightly off
+            score += 2
+        else:  # Too slow or too fast
+            score += 1
+        
+        # THRESHOLDS: Based on combined score
+        if score >= 8:  # 8-9 points = excellent for beginners
+            return "Beginner", score, "Perfect for beginners"
+        elif score >= 6:  # 6-7 points = good for learning
+            return "Intermediate", score, "Best for intermediate learners"
+        else:  # 5 or below = advanced
+            return "Advanced", score, "Designed for advanced learners"
     
     def determine_hindi_skill_level(self, analysis_results):
         """Special skill level determination for Hindi videos"""
@@ -196,28 +208,28 @@ class TranscriptAnalyzer:
         
         score = 0
         
-        # Hindi teaching is often more beginner-friendly
-        # Adjust scoring for Hindi patterns
-        if pacing < 180:  # Hindi tutorials often slower
+        # PACING: Hindi tutorials typically 110-150 WPM (slower than English)
+        if 110 <= pacing <= 160:  # Ideal for Hindi teaching
             score += 3
-        elif pacing < 220:
+        elif pacing < 110 or (160 < pacing <= 180):  # Slightly off
             score += 2
-        else:
+        else:  # Too extreme
             score += 1
         
-        if jargon < 10:  # Hindi might use more explanatory language
+        # JARGON: Hindi uses more explanatory language
+        if jargon < 8:  # Very accessible
             score += 3
-        elif jargon < 25:
+        elif jargon < 15:  # Still good
             score += 2
-        else:
+        else:  # Getting technical
             score += 1
         
-        # Always add some points for Hindi (assume beginner-friendly)
+        # Hindi teaching bonus (typically more beginner-friendly)
         score += 2
         
-        if score >= 6:
-            return "Beginner", score, "हिंदी ट्यूटोरियल - शुरुआती के लिए उपयुक्त"
-        elif score >= 4:
+        if score >= 7:
+            return "Beginner", score, "हिंदी ट्यूटोरियल - शुरुआती के लिए बिल्कुल उपयुक्त"
+        elif score >= 5:
             return "Intermediate", score, "हिंदी ट्यूटोरियल - मध्यम स्तर के लिए"
         else:
             return "Advanced", score, "हिंदी ट्यूटोरियल - उन्नत स्तर के लिए"
